@@ -1,0 +1,536 @@
+---
+title: "Den store grønsaksutfordringa 2026"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    css: styles.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(DT)
+library(googlesheets4)
+library(scales)
+
+```
+
+
+```{r}
+theme_dashboard <- function() {
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.background  = element_rect(fill = "#1F5F55", color = NA),
+      panel.background = element_rect(fill = "#1F5F55", color = NA),
+
+      panel.grid.major = element_line(color = "#3F8F7F", linewidth = 0.3),
+      panel.grid.minor = element_blank(),
+
+      axis.text  = element_text(color = "#E6F4EA"),
+      axis.title = element_text(color = "#E6F4EA"),
+      plot.title = element_text(color = "#FFFFFF", face = "bold"),
+
+      legend.background = element_rect(fill = "#1F5F55", color = NA),
+      legend.key        = element_rect(fill = "#1F5F55", color = NA),
+      legend.text       = element_text(color = "#E6F4EA"),
+      legend.title      = element_text(color = "#FFFFFF"),
+
+      strip.background = element_rect(fill = "#25695C", color = NA),
+      strip.text       = element_text(color = "#FFFFFF")
+    )
+}
+
+scale_color_dashboard <- scale_color_manual(
+  values = c(
+    "#E9C46A",
+    "#8ECAE6",
+    "#F4A261",
+    "#CDB4DB",
+    "#A8DADC",
+    "#FFD6A5"
+  )
+)
+
+scale_fill_dashboard <- scale_fill_manual(
+  values = c(
+    "#E9C46A",
+    "#8ECAE6",
+    "#F4A261",
+    "#CDB4DB",
+    "#A8DADC",
+    "#FFD6A5"
+  )
+)
+
+
+```
+
+
+
+
+
+```{r}
+# KODE: limer inn dataene dine som tekst
+
+# raw_txt <- "
+# Veke\tDato\tDag\tSigrun\tKnut_Olav\tTale\tMarleny\tMarianne
+# 2\t05.01\tMandag\t4\t6\t7\t3\t8
+# 2\t06.01\ttirsdag\t5\t5\t5\t6\t7
+# 2\t07.01\tonsdag\t7\t6\t3\t5\t6
+# 2\t08.01\ttorsdag\t8\t4\t4\t4\t4
+# 2\t09.01\tfredag\t3\t8\t6\t8\t3
+# 2\t10.01\tlørdag\t6\t7\t5\t7\t5
+# 2\t11.01\tsøndag\t5\t6\t4\t6\t6
+# 3\t12.01\tmandag\t\t\t\t\t
+# 3\t13.01\ttirsdag\t\t\t\t\t
+# 3\t14.01\tonsdag\t\t\t\t\t
+# 3\t15.01\ttorsdag\t\t\t\t\t
+# 3\t16.01\tfredag\t\t\t\t\t
+# 3\t17.01\tlørdag\t\t\t\t\t
+# 3\t18.01\tsøndag\t\t\t\t\t
+# 4\t19.01\tmandag\t\t\t\t\t
+# 4\t20.01\ttirsdag\t\t\t\t\t
+# 4\t21.01\tonsdag\t\t\t\t\t
+# 4\t22.01\ttorsdag\t\t\t\t\t
+# 4\t23.01\tfredag\t\t\t\t\t
+# 4\t24.01\tlørdag\t\t\t\t\t
+# 4\t25.01\tsøndag\t\t\t\t\t
+# 5\t26.01\tmandag\t\t\t\t\t
+# 5\t27.01\ttirsdag\t\t\t\t\t
+# 5\t28.01\tonsdag\t\t\t\t\t
+# 5\t29.01\ttorsdag\t\t\t\t\t
+# 5\t30.01\tfredag\t\t\t\t\t
+# 5\t31.01\tlørdag\t\t\t\t\t
+# 5\t01.02\tsøndag\t\t\t\t\t
+# 6\t02.02\tmandag\t\t\t\t\t
+# 6\t03.02\ttirsdag\t\t\t\t\t
+# 6\t04.02\tonsdag\t\t\t\t\t
+# 6\t05.02\ttorsdag\t\t\t\t\t
+# 6\t06.02\tfredag\t\t\t\t\t
+# 6\t07.02\tlørdag\t\t\t\t\t
+# 6\t08.02\tsøndag\t\t\t\t\t
+# "
+
+# KODE: leser data direkte frå Google Sheets
+
+library(googlesheets4)
+
+gs4_deauth()  # <-- viktig for render
+
+sheet_url <- "https://docs.google.com/spreadsheets/d/1kjO8CH6KSam6Ne0IFO36eGf_dbU_TRWvUjm8zAdve80/edit?usp=sharing"
+
+df_wide <- read_sheet(
+  sheet_url,
+  col_types = "icccccccc"  # Veke = int, resten character
+)
+
+df_wide <- df_wide |>
+  mutate(
+    Veke = as.integer(Veke),
+    Dato = dmy(paste0(Dato, ".2026")),
+    Dag  = str_to_title(Dag)
+  )
+
+df_long <- df_wide |>
+  pivot_longer(
+    cols = c("Sigrun", "Knut_Olav", "Tale", "Marleny", "Marianne", "Eline"),
+    names_to = "Person",
+    values_to = "Score"
+  ) |>
+  mutate(
+    Score = suppressWarnings(as.numeric(Score)),
+    Dag = str_trim(Dag),
+    Dag = str_to_title(Dag),
+    Dag = factor(
+      Dag,
+      levels = c("Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag")
+    )
+  )
+
+
+```
+```{r}
+plot_person_week <- function(df_long, person_vald,
+                             show_band = c("minmax", "sd", "ci95"),
+                             color = "#E9C46A") {
+
+  show_band <- match.arg(show_band)
+
+  df_week <- df_long |>
+    dplyr::filter(Person == person_vald) |>
+    dplyr::group_by(Veke) |>
+    dplyr::summarise(
+      n       = sum(!is.na(Score)),              # tel utfylte (0 tel med)
+      mean    = mean(Score, na.rm = TRUE),
+      sd      = stats::sd(Score, na.rm = TRUE),
+      min     = suppressWarnings(min(Score, na.rm = TRUE)),
+      max     = suppressWarnings(max(Score, na.rm = TRUE)),
+      .groups = "drop"
+    ) |>
+    dplyr::filter(n > 0) |>
+    dplyr::mutate(
+      se = sd / sqrt(n),
+      lo_ci = mean - 1.96 * se,
+      hi_ci = mean + 1.96 * se
+    )
+
+  # vel band
+  if (show_band == "minmax") {
+    df_week <- df_week |> dplyr::mutate(lo = min, hi = max)
+    band_label <- "min–maks"
+  } else if (show_band == "sd") {
+    df_week <- df_week |> dplyr::mutate(lo = mean - sd, hi = mean + sd)
+    band_label <- "±1 SD"
+  } else {
+    df_week <- df_week |> dplyr::mutate(lo = lo_ci, hi = hi_ci)
+    band_label <- "95% CI"
+  }
+
+  ggplot(df_week, aes(x = Veke, y = mean)) +
+    # band (med litt transparens)
+    geom_ribbon(aes(ymin = lo, ymax = hi), fill = color, alpha = 0.18) +
+    geom_line(color = color, linewidth = 1.2) +
+    geom_point(color = color, size = 2.6) +
+
+    # label med tal registreringar per veke
+    geom_text(
+      aes(label = paste0("n=", n)),
+      vjust = -0.9,
+      color = "#E6F4EA",
+      size = 3.3
+    ) +
+
+    scale_y_continuous(
+      limits = c(0, 8),
+      breaks = 0:8
+    ) +
+     scale_x_continuous(
+      limits = c(2, 6),
+      breaks = 0:8
+    ) +
+    labs(
+      title = paste0("Gjennomsnitt per veke – ", person_vald),
+      subtitle = paste0("Skugge: ", band_label),
+      x = "Veke",
+      y = "Gjennomsnittleg grønsakspoeng"
+    ) +
+    theme_dashboard()
+}
+
+# plot_person_week(df_long, "Tale", show_band = "minmax", color = "#E9C46A")
+
+```
+
+```{r}
+# KODE: beregner KPI-er
+
+kpi_total <- sum(df_long$Score, na.rm = TRUE)
+kpi_snitt <- mean(df_long$Score, na.rm = TRUE)
+kpi_max   <- max(df_long$Score, na.rm = TRUE)
+kpi_dager <- n_distinct(df_long$Dato)
+
+kpi_registrert <- sum(!is.na(df_long$Score))
+
+
+```
+
+## Nøkkeltal  {.tabset}
+
+
+::: {.columns}
+::: {.column width="25%"}
+::: {.card}
+
+### Total
+`r scales::comma(kpi_total)`
+:::
+:::
+
+::: {.column width="25%"}
+::: {.card}
+
+### Snitt
+`r round(kpi_snitt, 2)`
+:::
+:::
+
+::: {.column width="25%"}
+::: {.card}
+
+### Maks
+`r kpi_max`
+:::
+:::
+
+::: {.column width="25%"}
+::: {.card}
+
+### Registringar
+`r kpi_registrert`
+
+:::
+:::
+:::
+
+---
+### Oversikt
+::: {.card}
+Heatmap
+```{r, fig.height=4.2}
+df_long |>
+ggplot(aes(x = Dato, y = fct_rev(Person), fill = Score)) +
+geom_tile() +
+scale_fill_gradientn(
+  colours = c("grey", "#2BBFA7", "#E6FF55"),
+  limits = c(0, 8),
+  breaks = c(0, 2, 4, 6, 8),
+  na.value = "transparent"
+) +
+labs(x = NULL, y = NULL, fill = "Grønsakspoeng") +
+scale_x_date(date_labels = "%d.%m", date_breaks = "3 days") +
+theme_dashboard() +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+:::
+
+::: {.columns}
+::: {.column width="50%"}
+::: {.card}
+
+Ukedagsmønster (snitt alle)
+```{r, fig.height=3.6}
+tmp <- df_long |>
+  mutate(
+    Dag = stringr::str_trim(Dag),
+    Dag = stringr::str_to_title(Dag),
+    Dag = factor(Dag, levels = c("Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag"))
+  ) |>
+  filter(!is.na(Score)) |>
+  group_by(Dag) |>
+  summarise(Snitt = mean(Score), .groups = "drop") |>
+  filter(!is.na(Snitt)) |>
+  droplevels()
+
+ggplot(tmp, aes(x = Dag, y = Snitt)) +
+  geom_col(width = 0.7, fill = "#FFD655" ) +
+  labs(x = NULL, y = "Gjennomsnittleg grønsakspoeng") +
+  theme_dashboard() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+:::
+:::
+::: {.column width="50%"}
+::: {.card}
+
+
+Kumulativ score (totalt)
+```{r, fig.height=3.6}
+
+df_long |>
+arrange(Dato) |>
+group_by(Dato) |>
+summarise(Dagssum = sum(Score, na.rm = TRUE), .groups = "drop") |>
+arrange(Dato) |>
+mutate(Kumulativ = cumsum(Dagssum)) |>
+ggplot(aes(Dato, Kumulativ)) +
+geom_line(linewidth = 1, color = "#15CFB5") +
+geom_point(size = 1.8, , color = "#15CFB5") +
+labs(x = "Dato", y = "Kumulativ poengsum (alle)") +
+theme_dashboard() +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+:::
+:::
+:::
+
+
+## Fordelt på person
+::: {.card}
+Trend per person
+```{r, fig.height=3.6}
+df_week <- df_long |>
+  group_by(Veke, Person) |>
+  summarise(
+    Antall = sum(!is.na(Score)),                 # tel utfylte (0 tel med)
+    Ukesum_raw = sum(Score, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    Ukesum = if_else(Antall == 0, NA_real_, Ukesum_raw)
+  )
+
+ggplot(df_week, aes(x = Veke, y = Ukesum, color = Person, group = Person)) +
+  geom_line(linewidth = 1, na.rm = TRUE) +
+  geom_point(
+    data = df_week |> filter(Antall > 0),
+    size = 2
+  ) +
+scale_color_dashboard+
+  labs(x = "Veke", y = "Grønsakspoeng", color = "Deltakar") +
+ theme_dashboard() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 9)
+  )
+
+```
+:::
+
+
+###
+::: {.card}
+```{r}
+df_long |>
+  filter(!is.na(Score)) |>
+  mutate(Person = forcats::fct_reorder(Person, Score, .fun = median, na.rm = TRUE)) |>
+  ggplot(aes(x = Person, y = Score, fill = Person)) +
+  geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(aes(color = Person), width = 0.12, alpha = 0.35, size = 1.6) +
+  scale_y_continuous(limits = c(0, 8), breaks = 0:8) +
+  scale_fill_manual(values = c(
+    "Sigrun"    = "#8ECAE6",
+    "Knut_Olav" = "#CDB4DB",
+    "Tale"      = "#E9C46A",
+    "Marleny"   = "#A8DADC",
+    "Marianne"  = "#F4A261",
+    "Eline"     = "#FFD6A5"
+  )) +
+  scale_color_manual(values = c(
+    "Sigrun"    = "#8ECAE6",
+    "Knut_Olav" = "#CDB4DB",
+    "Tale"      = "#E9C46A",
+    "Marleny"   = "#A8DADC",
+    "Marianne"  = "#F4A261",
+    "Eline"     = "#FFD6A5"
+  )) +
+  labs(
+    title = "Fordeling per person (med datapunkt)",
+    x = NULL,
+    y = "Grønsakspoeng"
+  ) +
+  theme_dashboard() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 25, hjust = 1)
+  )
+
+```
+:::
+
+
+
+
+:::
+
+:::
+:::
+
+:::
+
+## Snitt per veke - individuelt {.tabset}
+```{r}
+people <- sort(unique(df_long$Person))
+
+# fargar per person (legg til/fjern som du vil)
+
+person_colors <- c(
+"Sigrun"    = "#8ECAE6",
+"Knut_Olav" = "#CDB4DB",
+"Tale"      = "#E9C46A",
+"Marleny"   = "#A8DADC",
+"Marianne"  = "#F4A261",
+"Eline"     = "#FFD6A5"
+)
+
+for (p in people) {
+cat("\n\n### ", p, "\n\n", sep = "")
+
+col <- if (p %in% names(person_colors)) person_colors[[p]] else "#E9C46A"
+
+print(plot_person_week(df_long, p, show_band = "minmax", color = col))
+
+# Valfritt: legg inn ein liten tabell under plottet
+
+# df_tbl <- df_long |>
+# dplyr::filter(Person == p, !is.na(Score)) |>
+# dplyr::arrange(Dato) |>
+# dplyr::select(Veke, Dato, Dag, Score)
+# 
+# DT::datatable(
+# df_tbl,
+# options = list(pageLength = 10),
+# rownames = FALSE
+# )
+ }
+
+```
+
+
+## Ukedagsmønster - individuelt {.tabset}
+```{r}
+people <- sort(unique(df_long$Person))
+
+# fargar per person (juster om du vil)
+
+person_colors <- c(
+"Sigrun"    = "#8ECAE6",
+"Knut_Olav" = "#CDB4DB",
+"Tale"      = "#E9C46A",
+"Marleny"   = "#A8DADC",
+"Marianne"  = "#F4A261",
+"Eline"     = "#FFD6A5"
+)
+
+for (p in people) {
+cat("\n\n### ", p, "\n\n", sep = "")
+
+df_p <- df_long |>
+filter(Person == p) |>
+mutate(
+Dag = stringr::str_trim(Dag),
+Dag = stringr::str_to_title(Dag),
+Dag = factor(Dag, levels = c("Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag"))
+) |>
+filter(!is.na(Score), !is.na(Dag)) |>
+group_by(Dag) |>
+summarise(Snitt = mean(Score), n = sum(!is.na(Score)), .groups = "drop") |>
+droplevels()
+
+col <- if (p %in% names(person_colors)) person_colors[[p]] else "#FFC82F"
+
+print(
+ggplot(df_p, aes(Dag, Snitt)) +
+geom_col(width = 0.7, fill = col) +
+scale_y_continuous(limits = c(0, 8), breaks = 0:8) +
+labs(x = NULL, y = "Gjennomsnittleg score") +
+theme_dashboard() +
+theme(axis.text.x = element_text(angle = 30, hjust = 1))
+)
+}
+
+```
+
+
+# Registreringar
+::: {.card}
+
+```{r}
+DT::datatable(
+df_wide,
+options = list(pageLength = 7, scrollX = TRUE),
+rownames = FALSE
+)
+```
+
+:::
