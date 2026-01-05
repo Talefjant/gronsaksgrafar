@@ -1,0 +1,59 @@
+name: Render Quarto dashboard
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # kvar time (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    env:
+      RENV_CONFIG_AUTOLOADER_ENABLED: "FALSE"
+      
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc libcurl4-openssl-dev libssl-dev libxml2-dev
+
+      - name: Install R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            tidyverse
+            lubridate
+            DT
+            googlesheets4
+            scales
+          needs: |
+            cran
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render site
+        run: quarto render
+
+      - name: Commit rendered files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs
+          git commit -m "Auto-update dashboard" || echo "No changes"
+          git push
